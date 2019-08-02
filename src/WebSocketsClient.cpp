@@ -442,6 +442,9 @@ void WebSocketsClient::clientDisconnect(WSclient_t * client) {
 
     client->status = WSC_NOT_CONNECTED;
 
+    // Don't reconnect instantly
+    _lastConnectionFail = millis();
+
     DEBUG_WEBSOCKETS("[WS-Client] client disconnected.\n");
     if(event) {
         runCbEvent(WStype_DISCONNECTED, NULL, 0);
