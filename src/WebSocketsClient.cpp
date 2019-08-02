@@ -165,7 +165,7 @@ void WebSocketsClient::loop(void) {
             _client.ssl = new WEBSOCKETS_NETWORK_SSL_CLASS();
             _client.tcp = _client.ssl;
             if(_CA_cert) {
-                DEBUG_WEBSOCKETS("[WS-Client] setting CA certificate");
+                DEBUG_WEBSOCKETS("[WS-Client] setting CA certificate\n");
 #if defined(ESP32)
                 _client.ssl->setCACert(_CA_cert);
 #elif defined(ESP8266)
