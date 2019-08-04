@@ -9,8 +9,6 @@
 #include "WebSocketsClient.h"
 #include "SocketIOclient.h"
 
-static const char* TAG = "wsIOc";
-
 SocketIOclient::SocketIOclient() {
 }
 

@@ -81,6 +81,8 @@ class SocketIOclient : protected WebSocketsClient {
         handleCbEvent(type, payload, length);
     }
     void handleCbEvent(WStype_t type, uint8_t * payload, size_t length);
+
+    static constexpr char* TAG = "WS-IO";
 };
 
 #endif /* SOCKETIOCLIENT_H_ */
