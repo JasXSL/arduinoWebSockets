@@ -40,19 +40,6 @@
 #include <functional>
 #endif
 
-#ifndef NODEBUG_WEBSOCKETS
-#ifdef DEBUG_ESP_PORT
-#define DEBUG_WEBSOCKETS(...) DEBUG_ESP_PORT.printf(__VA_ARGS__)
-#else
-//#define DEBUG_WEBSOCKETS(...) os_printf( __VA_ARGS__ )
-#endif
-#endif
-
-#ifndef DEBUG_WEBSOCKETS
-#define DEBUG_WEBSOCKETS(...)
-#define NODEBUG_WEBSOCKETS
-#endif
-
 #if defined(ESP8266) || defined(ESP32)
 
 #define WEBSOCKETS_MAX_DATA_SIZE (15 * 1024)
@@ -323,6 +310,8 @@ class WebSockets {
 
     void enableHeartbeat(WSclient_t * client, uint32_t pingInterval, uint32_t pongTimeout, uint8_t disconnectTimeoutCount);
     void handleHBTimeout(WSclient_t * client);
+
+    static constexpr char* TAG = "WS"; // ESP_LOG
 };
 
 #ifndef UNUSED

@@ -106,7 +106,7 @@ void WebSocketsServer::begin(void) {
     _runnning = true;
     _server->begin();
 
-    DEBUG_WEBSOCKETS("[WS-Server] Server Started.\n");
+    ESP_LOGD(TAG, "Server Started.");
 }
 
 void WebSocketsServer::close(void) {
@@ -462,17 +462,17 @@ bool WebSocketsServer::newClient(WEBSOCKETS_NETWORK_CLASS * TCPclient) {
 #endif
             client->status = WSC_HEADER;
 #if(WEBSOCKETS_NETWORK_TYPE == NETWORK_ESP8266) || (WEBSOCKETS_NETWORK_TYPE == NETWORK_ESP8266_ASYNC) || (WEBSOCKETS_NETWORK_TYPE == NETWORK_ESP32)
-#ifndef NODEBUG_WEBSOCKETS
+#if CORE_DEBUG_LEVEL >= 4
             IPAddress ip = client->tcp->remoteIP();
 #endif
-            DEBUG_WEBSOCKETS("[WS-Server][%d] new client from %d.%d.%d.%d\n", client->num, ip[0], ip[1], ip[2], ip[3]);
+            ESP_LOGD(TAG, "[%d] new client from %d.%d.%d.%d", client->num, ip[0], ip[1], ip[2], ip[3]);
 #else
-            DEBUG_WEBSOCKETS("[WS-Server][%d] new client\n", client->num);
+            ESP_LOGD(TAG, "[%d] new client", client->num);
 #endif
 
 #if(WEBSOCKETS_NETWORK_TYPE == NETWORK_ESP8266_ASYNC)
             client->tcp->onDisconnect(std::bind([](WebSocketsServer * server, AsyncTCPbuffer * obj, WSclient_t * client) -> bool {
-                DEBUG_WEBSOCKETS("[WS-Server][%d] Disconnect client\n", client->num);
+                ESP_LOGD(TAG, "[%d] Disconnect client", client->num);
 
                 AsyncTCPbuffer ** sl = &server->_clients[client->num].tcp;
                 if(*sl == obj) {
@@ -574,7 +574,7 @@ void WebSocketsServer::clientDisconnect(WSclient_t * client) {
 
     client->status = WSC_NOT_CONNECTED;
 
-    DEBUG_WEBSOCKETS("[WS-Server][%d] client disconnected.\n", client->num);
+    ESP_LOGD(TAG, "[%d] client disconnected.", client->num);
 
     runCbEvent(client->num, WStype_DISCONNECTED, NULL, 0);
 }
@@ -596,7 +596,7 @@ bool WebSocketsServer::clientIsConnected(WSclient_t * client) {
     } else {
         // client lost
         if(client->status != WSC_NOT_CONNECTED) {
-            DEBUG_WEBSOCKETS("[WS-Server][%d] client connection lost.\n", client->num);
+            ESP_LOGD(TAG, "[%d] client connection lost.", client->num);
             // do cleanup
             clientDisconnect(client);
         }
@@ -604,7 +604,7 @@ bool WebSocketsServer::clientIsConnected(WSclient_t * client) {
 
     if(client->tcp) {
         // do cleanup
-        DEBUG_WEBSOCKETS("[WS-Server][%d] client list cleanup.\n", client->num);
+        ESP_LOGD(TAG, "[%d] client list cleanup.", client->num);
         clientDisconnect(client);
     }
 
@@ -628,7 +628,7 @@ void WebSocketsServer::handleNewClients(void) {
 #endif
 
         if(!tcpClient) {
-            DEBUG_WEBSOCKETS("[WS-Client] creating Network class failed!");
+            ESP_LOGD(TAG, "creating Network class failed!");
             return;
         }
 
@@ -637,12 +637,12 @@ void WebSocketsServer::handleNewClients(void) {
         if(!ok) {
             // no free space to handle client
 #if(WEBSOCKETS_NETWORK_TYPE == NETWORK_ESP8266) || (WEBSOCKETS_NETWORK_TYPE == NETWORK_ESP32)
-#ifndef NODEBUG_WEBSOCKETS
+#if CORE_DEBUG_LEVEL >= 4
             IPAddress ip = tcpClient->remoteIP();
 #endif
-            DEBUG_WEBSOCKETS("[WS-Server] no free space new client from %d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
+            ESP_LOGD(TAG, "no free space new client from %d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
 #else
-        DEBUG_WEBSOCKETS("[WS-Server] no free space new client\n");
+        ESP_LOGD(TAG, "no free space new client");
 #endif
             tcpClient->stop();
         }
@@ -663,7 +663,7 @@ void WebSocketsServer::handleClientData(void) {
         if(clientIsConnected(client)) {
             int len = client->tcp->available();
             if(len > 0) {
-                //DEBUG_WEBSOCKETS("[WS-Server][%d][handleClientData] len: %d\n", client->num, len);
+                //ESP_LOGD(TAG, "[%d][handleClientData] len: %d", client->num, len);
                 switch(client->status) {
                     case WSC_HEADER: {
                         String headerLine = client->tcp->readStringUntil('\n');
@@ -708,7 +708,7 @@ void WebSocketsServer::handleHeader(WSclient_t * client, String * headerLine) {
     headerLine->trim();    // remove \r
 
     if(headerLine->length() > 0) {
-        DEBUG_WEBSOCKETS("[WS-Server][%d][handleHeader] RX: %s\n", client->num, headerLine->c_str());
+        ESP_LOGD(TAG, "[%d][handleHeader] RX: %s", client->num, headerLine->c_str());
 
         // websocket requests always start with GET see rfc6455
         if(headerLine->startsWith("GET ")) {
@@ -756,7 +756,7 @@ void WebSocketsServer::handleHeader(WSclient_t * client, String * headerLine) {
             }
 
         } else {
-            DEBUG_WEBSOCKETS("[WS-Client][handleHeader] Header error (%s)\n", headerLine->c_str());
+            ESP_LOGD(TAG, "[handleHeader] Header error (%s)", headerLine->c_str());
         }
 
         (*headerLine) = "";
@@ -764,17 +764,17 @@ void WebSocketsServer::handleHeader(WSclient_t * client, String * headerLine) {
         client->tcp->readStringUntil('\n', &(client->cHttpLine), std::bind(&WebSocketsServer::handleHeader, this, client, &(client->cHttpLine)));
 #endif
     } else {
-        DEBUG_WEBSOCKETS("[WS-Server][%d][handleHeader] Header read fin.\n", client->num);
-        DEBUG_WEBSOCKETS("[WS-Server][%d][handleHeader]  - cURL: %s\n", client->num, client->cUrl.c_str());
-        DEBUG_WEBSOCKETS("[WS-Server][%d][handleHeader]  - cIsUpgrade: %d\n", client->num, client->cIsUpgrade);
-        DEBUG_WEBSOCKETS("[WS-Server][%d][handleHeader]  - cIsWebsocket: %d\n", client->num, client->cIsWebsocket);
-        DEBUG_WEBSOCKETS("[WS-Server][%d][handleHeader]  - cKey: %s\n", client->num, client->cKey.c_str());
-        DEBUG_WEBSOCKETS("[WS-Server][%d][handleHeader]  - cProtocol: %s\n", client->num, client->cProtocol.c_str());
-        DEBUG_WEBSOCKETS("[WS-Server][%d][handleHeader]  - cExtensions: %s\n", client->num, client->cExtensions.c_str());
-        DEBUG_WEBSOCKETS("[WS-Server][%d][handleHeader]  - cVersion: %d\n", client->num, client->cVersion);
-        DEBUG_WEBSOCKETS("[WS-Server][%d][handleHeader]  - base64Authorization: %s\n", client->num, client->base64Authorization.c_str());
-        DEBUG_WEBSOCKETS("[WS-Server][%d][handleHeader]  - cHttpHeadersValid: %d\n", client->num, client->cHttpHeadersValid);
-        DEBUG_WEBSOCKETS("[WS-Server][%d][handleHeader]  - cMandatoryHeadersCount: %d\n", client->num, client->cMandatoryHeadersCount);
+        ESP_LOGD(TAG, "[%d][handleHeader] Header read fin.", client->num);
+        ESP_LOGD(TAG, "[%d][handleHeader]  - cURL: %s", client->num, client->cUrl.c_str());
+        ESP_LOGD(TAG, "[%d][handleHeader]  - cIsUpgrade: %d", client->num, client->cIsUpgrade);
+        ESP_LOGD(TAG, "[%d][handleHeader]  - cIsWebsocket: %d", client->num, client->cIsWebsocket);
+        ESP_LOGD(TAG, "[%d][handleHeader]  - cKey: %s", client->num, client->cKey.c_str());
+        ESP_LOGD(TAG, "[%d][handleHeader]  - cProtocol: %s", client->num, client->cProtocol.c_str());
+        ESP_LOGD(TAG, "[%d][handleHeader]  - cExtensions: %s", client->num, client->cExtensions.c_str());
+        ESP_LOGD(TAG, "[%d][handleHeader]  - cVersion: %d", client->num, client->cVersion);
+        ESP_LOGD(TAG, "[%d][handleHeader]  - base64Authorization: %s", client->num, client->base64Authorization.c_str());
+        ESP_LOGD(TAG, "[%d][handleHeader]  - cHttpHeadersValid: %d", client->num, client->cHttpHeadersValid);
+        ESP_LOGD(TAG, "[%d][handleHeader]  - cMandatoryHeadersCount: %d", client->num, client->cMandatoryHeadersCount);
 
         bool ok = (client->cIsUpgrade && client->cIsWebsocket);
 
@@ -800,19 +800,19 @@ void WebSocketsServer::handleHeader(WSclient_t * client, String * headerLine) {
             String auth = WEBSOCKETS_STRING("Basic ");
             auth += _base64Authorization;
             if(auth != client->base64Authorization) {
-                DEBUG_WEBSOCKETS("[WS-Server][%d][handleHeader] HTTP Authorization failed!\n", client->num);
+                ESP_LOGD(TAG, "[%d][handleHeader] HTTP Authorization failed!", client->num);
                 handleAuthorizationFailed(client);
                 return;
             }
         }
 
         if(ok) {
-            DEBUG_WEBSOCKETS("[WS-Server][%d][handleHeader] Websocket connection incoming.\n", client->num);
+            ESP_LOGD(TAG, "[%d][handleHeader] Websocket connection incoming.", client->num);
 
             // generate Sec-WebSocket-Accept key
             String sKey = acceptKey(client->cKey);
 
-            DEBUG_WEBSOCKETS("[WS-Server][%d][handleHeader]  - sKey: %s\n", client->num, sKey.c_str());
+            ESP_LOGD(TAG, "[%d][handleHeader]  - sKey: %s", client->num, sKey.c_str());
 
             client->status = WSC_CONNECTED;
 
@@ -838,7 +838,7 @@ void WebSocketsServer::handleHeader(WSclient_t * client, String * headerLine) {
             // header end
             handshake += NEW_LINE;
 
-            DEBUG_WEBSOCKETS("[WS-Server][%d][handleHeader] handshake %s", client->num, (uint8_t *)handshake.c_str());
+            ESP_LOGD(TAG, "[%d][handleHeader] handshake %s", client->num, (uint8_t *)handshake.c_str());
 
             write(client, (uint8_t *)handshake.c_str(), handshake.length());
 

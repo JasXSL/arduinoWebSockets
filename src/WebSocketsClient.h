@@ -140,6 +140,8 @@ class WebSocketsClient : protected WebSockets {
             _cbEvent(type, payload, length);
         }
     }
+
+    static constexpr char* TAG = "WS-Client"; // ESP_LOG
 };
 
 #endif /* WEBSOCKETSCLIENT_H_ */
