@@ -120,7 +120,7 @@ void SocketIOclient::loop(void) {
     unsigned long t = millis();
     if((t - _lastConnectionFail) > EIO_HEARTBEAT_INTERVAL) {
         _lastConnectionFail = t;
-        ESP_LOGD(TAG, "send ping");
+        DEBUG_WEBSOCKETS("[wsIOc] send ping\n");
         WebSocketsClient::sendTXT(eIOtype_PING);
     }
 }
@@ -129,10 +129,10 @@ void SocketIOclient::handleCbEvent(WStype_t type, uint8_t * payload, size_t leng
     switch(type) {
         case WStype_DISCONNECTED:
             runIOCbEvent(sIOtype_DISCONNECT, NULL, 0);
-            ESP_LOGD(TAG, "Disconnected!");
+            DEBUG_WEBSOCKETS("[wsIOc] Disconnected!\n");
             break;
         case WStype_CONNECTED: {
-            ESP_LOGD(TAG, "Connected to url: %s", payload);
+            DEBUG_WEBSOCKETS("[wsIOc] Connected to url: %s\n", payload);
             // send message to server when Connected
             // Engine.io upgrade confirmation message (required)
             WebSocketsClient::sendTXT(eIOtype_UPGRADE);
@@ -147,11 +147,11 @@ void SocketIOclient::handleCbEvent(WStype_t type, uint8_t * payload, size_t leng
             switch(eType) {
                 case eIOtype_PING:
                     payload[0] = eIOtype_PONG;
-                    ESP_LOGD(TAG, "get ping send pong (%s)", payload);
+                    DEBUG_WEBSOCKETS("[wsIOc] get ping send pong (%s)\n", payload);
                     WebSocketsClient::sendTXT(payload, length, false);
                     break;
                 case eIOtype_PONG:
-                    ESP_LOGD(TAG, "get pong");
+                    DEBUG_WEBSOCKETS("[wsIOc] get pong\n");
                     break;
                 case eIOtype_MESSAGE: {
                     if(length < 2) {
@@ -162,7 +162,7 @@ void SocketIOclient::handleCbEvent(WStype_t type, uint8_t * payload, size_t leng
                     size_t lData                 = length - 2;
                     switch(ioType) {
                         case sIOtype_EVENT:
-                            ESP_LOGD(TAG, "get event (%d): %s", lData, data);
+                            DEBUG_WEBSOCKETS("[wsIOc] get event (%d): %s\n", lData, data);
                             break;
                         case sIOtype_CONNECT:
                         case sIOtype_DISCONNECT:
@@ -171,8 +171,8 @@ void SocketIOclient::handleCbEvent(WStype_t type, uint8_t * payload, size_t leng
                         case sIOtype_BINARY_EVENT:
                         case sIOtype_BINARY_ACK:
                         default:
-                            ESP_LOGD(TAG, "Socket.IO Message Type %c (%02X) is not implemented", ioType, ioType);
-                            ESP_LOGD(TAG, "get text: %s", payload);
+                            DEBUG_WEBSOCKETS("[wsIOc] Socket.IO Message Type %c (%02X) is not implemented\n", ioType, ioType);
+                            DEBUG_WEBSOCKETS("[wsIOc] get text: %s\n", payload);
                             break;
                     }
 
@@ -183,8 +183,8 @@ void SocketIOclient::handleCbEvent(WStype_t type, uint8_t * payload, size_t leng
                 case eIOtype_UPGRADE:
                 case eIOtype_NOOP:
                 default:
-                    ESP_LOGD(TAG, "Engine.IO Message Type %c (%02X) is not implemented", eType, eType);
-                    ESP_LOGD(TAG, "get text: %s", payload);
+                    DEBUG_WEBSOCKETS("[wsIOc] Engine.IO Message Type %c (%02X) is not implemented\n", eType, eType);
+                    DEBUG_WEBSOCKETS("[wsIOc] get text: %s\n", payload);
                     break;
             }
         } break;

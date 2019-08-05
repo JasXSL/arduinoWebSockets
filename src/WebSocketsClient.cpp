@@ -156,7 +156,7 @@ void WebSocketsClient::loop(void) {
 
 #if defined(HAS_SSL)
         if(_client.isSSL) {
-            ESP_LOGD(TAG, "connect wss...");
+            DEBUG_WEBSOCKETS("[WS-Client] connect wss...\n");
             if(_client.ssl) {
                 delete _client.ssl;
                 _client.ssl = NULL;
@@ -165,7 +165,7 @@ void WebSocketsClient::loop(void) {
             _client.ssl = new WEBSOCKETS_NETWORK_SSL_CLASS();
             _client.tcp = _client.ssl;
             if(_CA_cert) {
-                ESP_LOGD(TAG, "setting CA certificate");
+                DEBUG_WEBSOCKETS("[WS-Client] setting CA certificate\n");
 #if defined(ESP32)
                 _client.ssl->setCACert(_CA_cert);
 #elif defined(ESP8266)
@@ -175,7 +175,7 @@ void WebSocketsClient::loop(void) {
 #endif
             }
         } else {
-            ESP_LOGD(TAG, "connect ws...");
+            DEBUG_WEBSOCKETS("[WS-Client] connect ws...\n");
             if(_client.tcp) {
                 delete _client.tcp;
                 _client.tcp = NULL;
@@ -187,7 +187,7 @@ void WebSocketsClient::loop(void) {
 #endif
 
         if(!_client.tcp) {
-            ESP_LOGD(TAG, "creating Network class failed!");
+            DEBUG_WEBSOCKETS("[WS-Client] creating Network class failed!");
             return;
         }
 #if defined(ESP32)
@@ -445,7 +445,7 @@ void WebSocketsClient::clientDisconnect(WSclient_t * client) {
     // Don't reconnect instantly
     _lastConnectionFail = millis();
 
-    ESP_LOGD(TAG, "client disconnected.");
+    DEBUG_WEBSOCKETS("[WS-Client] client disconnected.\n");
     if(event) {
         runCbEvent(WStype_DISCONNECTED, NULL, 0);
     }
@@ -468,7 +468,7 @@ bool WebSocketsClient::clientIsConnected(WSclient_t * client) {
     } else {
         // client lost
         if(client->status != WSC_NOT_CONNECTED) {
-            ESP_LOGD(TAG, "connection lost.");
+            DEBUG_WEBSOCKETS("[WS-Client] connection lost.\n");
             // do cleanup
             clientDisconnect(client);
         }
@@ -514,7 +514,7 @@ void WebSocketsClient::handleClientData(void) {
 void WebSocketsClient::sendHeader(WSclient_t * client) {
     static const char * NEW_LINE = "\r\n";
 
-    ESP_LOGD(TAG, "[sendHeader] sending header...");
+    DEBUG_WEBSOCKETS("[WS-Client][sendHeader] sending header...\n");
 
     uint8_t randomKey[16] = { 0 };
 
@@ -524,7 +524,7 @@ void WebSocketsClient::sendHeader(WSclient_t * client) {
 
     client->cKey = base64_encode(&randomKey[0], 16);
 
-#if CORE_DEBUG_LEVEL >= 4
+#ifndef NODEBUG_WEBSOCKETS
     unsigned long start = micros();
 #endif
 
@@ -588,16 +588,14 @@ void WebSocketsClient::sendHeader(WSclient_t * client) {
 
     handshake += NEW_LINE;
 
-    ESP_LOGD(TAG, "[sendHeader] handshake %s", (uint8_t *)handshake.c_str());
+    DEBUG_WEBSOCKETS("[WS-Client][sendHeader] handshake %s", (uint8_t *)handshake.c_str());
     write(client, (uint8_t *)handshake.c_str(), handshake.length());
 
 #if(WEBSOCKETS_NETWORK_TYPE == NETWORK_ESP8266_ASYNC)
     client->tcp->readStringUntil('\n', &(client->cHttpLine), std::bind(&WebSocketsClient::handleHeader, this, client, &(client->cHttpLine)));
 #endif
 
-#if CORE_DEBUG_LEVEL >= 4
-    ESP_LOGD(TAG, "[sendHeader] sending header... Done (%luus).", (micros() - start));
-#endif
+    DEBUG_WEBSOCKETS("[WS-Client][sendHeader] sending header... Done (%luus).\n", (micros() - start));
 }
 
 /**
@@ -608,7 +606,7 @@ void WebSocketsClient::handleHeader(WSclient_t * client, String * headerLine) {
     headerLine->trim();    // remove \r
 
     if(headerLine->length() > 0) {
-        ESP_LOGD(TAG, "[handleHeader] RX: %s", headerLine->c_str());
+        DEBUG_WEBSOCKETS("[WS-Client][handleHeader] RX: %s\n", headerLine->c_str());
 
         if(headerLine->startsWith(WEBSOCKETS_STRING("HTTP/1."))) {
             // "HTTP/1.1 101 Switching Protocols"
@@ -647,7 +645,7 @@ void WebSocketsClient::handleHeader(WSclient_t * client, String * headerLine) {
                 }
             }
         } else {
-            ESP_LOGD(TAG, "[handleHeader] Header error (%s)", headerLine->c_str());
+            DEBUG_WEBSOCKETS("[WS-Client][handleHeader] Header error (%s)\n", headerLine->c_str());
         }
 
         (*headerLine) = "";
@@ -655,21 +653,21 @@ void WebSocketsClient::handleHeader(WSclient_t * client, String * headerLine) {
         client->tcp->readStringUntil('\n', &(client->cHttpLine), std::bind(&WebSocketsClient::handleHeader, this, client, &(client->cHttpLine)));
 #endif
     } else {
-        ESP_LOGD(TAG, "[handleHeader] Header read fin.");
-        ESP_LOGD(TAG, "[handleHeader] Client settings:");
+        DEBUG_WEBSOCKETS("[WS-Client][handleHeader] Header read fin.\n");
+        DEBUG_WEBSOCKETS("[WS-Client][handleHeader] Client settings:\n");
 
-        ESP_LOGD(TAG, "[handleHeader]  - cURL: %s", client->cUrl.c_str());
-        ESP_LOGD(TAG, "[handleHeader]  - cKey: %s", client->cKey.c_str());
+        DEBUG_WEBSOCKETS("[WS-Client][handleHeader]  - cURL: %s\n", client->cUrl.c_str());
+        DEBUG_WEBSOCKETS("[WS-Client][handleHeader]  - cKey: %s\n", client->cKey.c_str());
 
-        ESP_LOGD(TAG, "[handleHeader] Server header:");
-        ESP_LOGD(TAG, "[handleHeader]  - cCode: %d", client->cCode);
-        ESP_LOGD(TAG, "[handleHeader]  - cIsUpgrade: %d", client->cIsUpgrade);
-        ESP_LOGD(TAG, "[handleHeader]  - cIsWebsocket: %d", client->cIsWebsocket);
-        ESP_LOGD(TAG, "[handleHeader]  - cAccept: %s", client->cAccept.c_str());
-        ESP_LOGD(TAG, "[handleHeader]  - cProtocol: %s", client->cProtocol.c_str());
-        ESP_LOGD(TAG, "[handleHeader]  - cExtensions: %s", client->cExtensions.c_str());
-        ESP_LOGD(TAG, "[handleHeader]  - cVersion: %d", client->cVersion);
-        ESP_LOGD(TAG, "[handleHeader]  - cSessionId: %s", client->cSessionId.c_str());
+        DEBUG_WEBSOCKETS("[WS-Client][handleHeader] Server header:\n");
+        DEBUG_WEBSOCKETS("[WS-Client][handleHeader]  - cCode: %d\n", client->cCode);
+        DEBUG_WEBSOCKETS("[WS-Client][handleHeader]  - cIsUpgrade: %d\n", client->cIsUpgrade);
+        DEBUG_WEBSOCKETS("[WS-Client][handleHeader]  - cIsWebsocket: %d\n", client->cIsWebsocket);
+        DEBUG_WEBSOCKETS("[WS-Client][handleHeader]  - cAccept: %s\n", client->cAccept.c_str());
+        DEBUG_WEBSOCKETS("[WS-Client][handleHeader]  - cProtocol: %s\n", client->cProtocol.c_str());
+        DEBUG_WEBSOCKETS("[WS-Client][handleHeader]  - cExtensions: %s\n", client->cExtensions.c_str());
+        DEBUG_WEBSOCKETS("[WS-Client][handleHeader]  - cVersion: %d\n", client->cVersion);
+        DEBUG_WEBSOCKETS("[WS-Client][handleHeader]  - cSessionId: %s\n", client->cSessionId.c_str());
 
         bool ok = (client->cIsUpgrade && client->cIsWebsocket);
 
@@ -686,7 +684,7 @@ void WebSocketsClient::handleHeader(WSclient_t * client, String * headerLine) {
                     // todo handle login
                 default:    ///< Server dont unterstand requrst
                     ok = false;
-                    ESP_LOGD(TAG, "[handleHeader] serverCode is not 101 (%d)", client->cCode);
+                    DEBUG_WEBSOCKETS("[WS-Client][handleHeader] serverCode is not 101 (%d)\n", client->cCode);
                     clientDisconnect(client);
                     _lastConnectionFail = millis();
                     break;
@@ -700,28 +698,28 @@ void WebSocketsClient::handleHeader(WSclient_t * client, String * headerLine) {
                 // generate Sec-WebSocket-Accept key for check
                 String sKey = acceptKey(client->cKey);
                 if(sKey != client->cAccept) {
-                    ESP_LOGD(TAG, "[handleHeader] Sec-WebSocket-Accept is wrong");
+                    DEBUG_WEBSOCKETS("[WS-Client][handleHeader] Sec-WebSocket-Accept is wrong\n");
                     ok = false;
                 }
             }
         }
 
         if(ok) {
-            ESP_LOGD(TAG, "[handleHeader] Websocket connection init done.");
+            DEBUG_WEBSOCKETS("[WS-Client][handleHeader] Websocket connection init done.\n");
             headerDone(client);
 
             runCbEvent(WStype_CONNECTED, (uint8_t *)client->cUrl.c_str(), client->cUrl.length());
         } else if(clientIsConnected(client) && client->isSocketIO && client->cSessionId.length() > 0) {
             if(_client.tcp->available()) {
                 // read not needed data
-                ESP_LOGD(TAG, "[handleHeader] still data in buffer (%d), clean up.", _client.tcp->available());
+                DEBUG_WEBSOCKETS("[WS-Client][handleHeader] still data in buffer (%d), clean up.\n", _client.tcp->available());
                 while(_client.tcp->available() > 0) {
                     _client.tcp->read();
                 }
             }
             sendHeader(client);
         } else {
-            ESP_LOGD(TAG, "[handleHeader] no Websocket connection close.");
+            DEBUG_WEBSOCKETS("[WS-Client][handleHeader] no Websocket connection close.\n");
             _lastConnectionFail = millis();
             if(clientIsConnected(client)) {
                 write(client, "This is a webSocket client!");
@@ -732,11 +730,11 @@ void WebSocketsClient::handleHeader(WSclient_t * client, String * headerLine) {
 }
 
 void WebSocketsClient::connectedCb() {
-    ESP_LOGD(TAG, "connected to %s:%u.", _host.c_str(), _port);
+    DEBUG_WEBSOCKETS("[WS-Client] connected to %s:%u.\n", _host.c_str(), _port);
 
 #if(WEBSOCKETS_NETWORK_TYPE == NETWORK_ESP8266_ASYNC)
     _client.tcp->onDisconnect(std::bind([](WebSocketsClient * c, AsyncTCPbuffer * obj, WSclient_t * client) -> bool {
-        ESP_LOGD(TAG, "[%d] Disconnect client", client->num);
+        DEBUG_WEBSOCKETS("[WS-Server][%d] Disconnect client\n", client->num);
         client->status = WSC_NOT_CONNECTED;
         client->tcp    = NULL;
 
@@ -762,7 +760,7 @@ void WebSocketsClient::connectedCb() {
 #if defined(HAS_SSL)
     if(_client.isSSL && _fingerprint.length()) {
         if(!_client.ssl->verify(_fingerprint.c_str(), _host.c_str())) {
-            ESP_LOGD(TAG, "certificate mismatch");
+            DEBUG_WEBSOCKETS("[WS-Client] certificate mismatch\n");
             WebSockets::clientDisconnect(&_client, 1000);
             return;
         }
@@ -778,18 +776,18 @@ void WebSocketsClient::connectedCb() {
 }
 
 void WebSocketsClient::connectFailedCb() {
-    ESP_LOGD(TAG, "connection to %s:%u Failed", _host.c_str(), _port);
+    DEBUG_WEBSOCKETS("[WS-Client] connection to %s:%u Failed\n", _host.c_str(), _port);
 }
 
 #if(WEBSOCKETS_NETWORK_TYPE == NETWORK_ESP8266_ASYNC)
 
 void WebSocketsClient::asyncConnect() {
-    ESP_LOGD(TAG, "asyncConnect...");
+    DEBUG_WEBSOCKETS("[WS-Client] asyncConnect...\n");
 
     AsyncClient * tcpclient = new AsyncClient();
 
     if(!tcpclient) {
-        ESP_LOGD(TAG, "creating AsyncClient class failed!");
+        DEBUG_WEBSOCKETS("[WS-Client] creating AsyncClient class failed!\n");
         return;
     }
 
@@ -801,7 +799,7 @@ void WebSocketsClient::asyncConnect() {
     tcpclient->onConnect(std::bind([](WebSocketsClient * ws, AsyncClient * tcp) {
         ws->_client.tcp = new AsyncTCPbuffer(tcp);
         if(!ws->_client.tcp) {
-            ESP_LOGD(TAG, "creating Network class failed!");
+            DEBUG_WEBSOCKETS("[WS-Client] creating Network class failed!\n");
             ws->connectFailedCb();
             return;
         }
@@ -833,7 +831,7 @@ void WebSocketsClient::handleHBPing() {
         return;
     uint32_t pi = millis() - _client.lastPing;
     if(pi > _client.pingInterval) {
-        ESP_LOGD(TAG, "sending HB ping");
+        DEBUG_WEBSOCKETS("[WS-Client] sending HB ping\n");
         if(sendPing()) {
             _client.lastPing     = millis();
             _client.pongReceived = false;

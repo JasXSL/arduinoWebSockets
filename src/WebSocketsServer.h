@@ -133,7 +133,7 @@ class WebSocketsServer : protected WebSockets {
          * @param client WSclient_t *  ptr to the client struct
          */
     virtual void handleNonWebsocketConnection(WSclient_t * client) {
-        ESP_LOGD(TAG, "[%d][handleHeader] no Websocket connection close.\n", client->num);
+        DEBUG_WEBSOCKETS("[WS-Server][%d][handleHeader] no Websocket connection close.\n", client->num);
         client->tcp->write(
             "HTTP/1.1 400 Bad Request\r\n"
             "Server: arduino-WebSocket-Server\r\n"
@@ -194,8 +194,6 @@ class WebSocketsServer : protected WebSockets {
         //no custom http header validation so just assume all is good
         return true;
     }
-
-    static constexpr char* TAG = "WS-Server"; // ESP_LOG
 
   private:
     /*
